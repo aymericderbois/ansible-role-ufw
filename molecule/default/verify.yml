@@ -1,0 +1,63 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Check if UFW is installed
+      ansible.builtin.command: ufw version
+      changed_when: false
+      register: ufw_version
+
+    - name: Display UFW version
+      ansible.builtin.debug:
+        var: ufw_version.stdout
+
+    - name: Check if UFW service is running
+      ansible.builtin.systemd:
+        name: ufw
+      register: ufw_service
+
+    - name: Assert UFW service is running
+      ansible.builtin.assert:
+        that:
+          - ufw_service.status.ActiveState == "active"
+        fail_msg: "UFW service is not running"
+        success_msg: "UFW service is running"
+
+    - name: Check UFW status
+      ansible.builtin.command: ufw status
+      changed_when: false
+      register: ufw_status
+
+    - name: Display UFW status
+      ansible.builtin.debug:
+        var: ufw_status.stdout_lines
+
+    - name: Assert UFW is enabled
+      ansible.builtin.assert:
+        that:
+          - "'Status: active' in ufw_status.stdout"
+        fail_msg: "UFW is not enabled"
+        success_msg: "UFW is enabled"
+
+    - name: Check SSH port (22) is allowed
+      ansible.builtin.assert:
+        that:
+          - "'22/tcp' in ufw_status.stdout"
+        fail_msg: "SSH port (22) is not allowed"
+        success_msg: "SSH port (22) is allowed"
+
+    - name: Check HTTP port (80) is allowed
+      ansible.builtin.assert:
+        that:
+          - "'80/tcp' in ufw_status.stdout"
+        fail_msg: "HTTP port (80) is not allowed"
+        success_msg: "HTTP port (80) is allowed"
+
+    - name: Check HTTPS port (443) is allowed
+      ansible.builtin.assert:
+        that:
+          - "'443/tcp' in ufw_status.stdout"
+        fail_msg: "HTTPS port (443) is not allowed"
+        success_msg: "HTTPS port (443) is allowed"

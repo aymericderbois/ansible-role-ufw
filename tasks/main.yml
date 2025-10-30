@@ -1,0 +1,45 @@
+---
+- name: Ensure ufw is installed
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+
+- name: Ensure default policies are set
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - {direction: 'incoming', policy: "{{ ufw_default_incoming_policy }}"}
+    - {direction: 'outgoing', policy: "{{ ufw_default_outgoing_policy }}"}
+
+- name: Ensure SSH is allowed (if configured)
+  community.general.ufw:
+    rule: allow
+    port: "{{ ufw_ssh_port }}"
+    proto: tcp
+    comment: "SSH access"
+  when: ufw_allow_ssh | bool
+
+- name: Ensure custom rules are set
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port | default(omit) }}"
+    proto: "{{ item.proto | default('tcp') }}"
+    direction: "{{ item.direction | default(omit) }}"
+    src: "{{ item.src | default(omit) }}"
+    dst: "{{ item.dst | default(omit) }}"
+    interface: "{{ item.interface | default(omit) }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ ufw_rules }}"
+  when: ufw_rules | length > 0
+
+- name: Ensure UFW is enabled
+  community.general.ufw:
+    state: enabled
+
+- name: Ensure UFW service is enabled and started
+  ansible.builtin.service:
+    name: ufw
+    state: started
+    enabled: true
